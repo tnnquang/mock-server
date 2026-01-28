@@ -1,0 +1,36 @@
+{
+  "name": "mock-server",
+  "version": "1.0.0",
+  "description": "Mock server to generate mock data when inject a sample data or interface/type. Support json sample data or path of file include type (extend support start and end line of type)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tnnquang/mock-server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tnnquang/mock-server/issues"
+  },
+  "homepage": "https://github.com/tnnquang/mock-server#readme",
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "commander": "^14.0.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "json-schema-faker": "^0.5.9",
+    "ts-morph": "^27.0.2",
+    "typescript-json-schema": "^0.67.1"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.10"
+  }
+}

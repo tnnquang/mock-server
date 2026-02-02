@@ -13,22 +13,6 @@ In modern web development, Frontend teams often have to wait for Backend APIs to
 
 ---
 
-## 🛠️ Mock Configuration
-
-The server supports multiple ways to define your mock data structure:
-
-- **`typescript`**: Resolves directly from your project's Types/Interfaces.
-- **`json-schema`**: Generates data from standard JSON Schema.
-- **`json`**: Returns static data or a JSON file.
-
-#### Nomenclature & Parameters
-
-| Old Key (Alias) | **New Key**        | Description                         |
-| :-------------- | :----------------- | :---------------------------------- |
-| `ts-type`       | `typescript`       | Use TypeScript as data source       |
-| `tsOptions`     | `mainConfig`       | Configuration for data source       |
-| `responseMode`  | `responseDataType` | `detail` (object) or `list` (array) |
-
 ---
 
 ### 📂 Advanced Configuration Features
@@ -139,8 +123,8 @@ node dist/cli.js mock --json my-sample.json --output result.json
 | :----------------- | :------- | :------------------------------------------------------------- |
 | `path`             | `string` | The API path (e.g., `/api/users`)                              |
 | `method`           | `string` | `GET`, `POST`, `PUT`, `DELETE`                                 |
-| `type`             | `string` | `ts-type`, `json`, or `json-schema`                            |
-| `responseMode`     | `string` | `object` or `list`                                             |
+| `type`             | `string` | `typescript`, `json`, or `json-schema`                         |
+| `responseDataType` | `string` | `object` or `list`                                             |
 | `responseTemplate` | `object` | Optional. Wrapper structure using `{{data}}`, `{{page}}`, etc. |
 
 **Example (TypeScript Source):**
@@ -149,9 +133,9 @@ node dist/cli.js mock --json my-sample.json --output result.json
 {
   "path": "/api/products",
   "method": "GET",
-  "type": "ts-type",
-  "responseMode": "list",
-  "tsOptions": {
+  "type": "typescript",
+  "responseDataType": "list",
+  "mainConfig": {
     "filePath": "src/models.ts",
     "typeName": "Product"
   }
@@ -187,11 +171,15 @@ Custom formatting allows you to match your project's specific response structure
 If your file has multiple interfaces and you don't want to specify a name:
 
 ```json
-"tsOptions": {
+"mainConfig": {
   "filePath": "src/types.ts",
   "lineRange": [10, 25]
 }
 ```
+
+### Auto-tsconfig Detection (Fix for Absolute Paths)
+
+The server now automatically detects the nearest `tsconfig.json` by walking up the directory tree from your `filePath`. This is crucial when mocking files from external projects or absolute paths, as it allows the engine to resolve all internal imports and aliases correctly.
 
 ---
 

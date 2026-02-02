@@ -1,6 +1,6 @@
 import { Project } from 'ts-morph';
 import * as TJS from 'typescript-json-schema';
-import jsf from 'json-schema-faker';
+import { JSONSchemaFaker } from 'json-schema-faker';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -8,8 +8,8 @@ import crypto from 'crypto';
 import { faker } from '@faker-js/faker/locale/vi';
 
 // Configure faker to be used by json-schema-faker
-jsf.extend('faker', () => faker);
-jsf.option({
+JSONSchemaFaker.extend('faker', () => faker);
+JSONSchemaFaker.option({
     alwaysFakeOptionals: true,
     optionalsProbability: 0.5
 });
@@ -146,26 +146,46 @@ async function resolveTsSchema(tsOptions: NonNullable<MockRouteConfig['tsOptions
         let program: TJS.Program;
 
         try {
-            if (options.tsconfigPath) {
-                const tsconfigPath = path.isAbsolute(options.tsconfigPath)
-                    ? options.tsconfigPath
-                    : path.resolve(process.cwd(), options.tsconfigPath);
+            // Priority: Explicit options.tsconfigPath > Detected near file > Default fallback
+            let effectiveTsconfig = options.tsconfigPath;
+            if (!effectiveTsconfig) {
+                effectiveTsconfig = findNearestTsConfig(absoluteFilePath);
+                if (effectiveTsconfig) {
+                    console.log(`Auto-detected tsconfig: ${effectiveTsconfig}`);
+                }
+            }
+
+            if (effectiveTsconfig) {
+                const tsconfigPath = path.isAbsolute(effectiveTsconfig)
+                    ? effectiveTsconfig
+                    : path.resolve(process.cwd(), effectiveTsconfig);
 
                 if (!fs.existsSync(tsconfigPath)) {
                     throw new Error(`tsconfig file not found: ${tsconfigPath}`);
                 }
 
+                // Important: For external files, we need the program to be aware of the external project context
                 program = TJS.programFromConfig(tsconfigPath, [absoluteFilePath]);
             } else {
                 const compilerOptions: TJS.CompilerOptions = {
                     strictNullChecks: true,
                     esModuleInterop: true,
-                    skipLibCheck: true
+                    skipLibCheck: true,
+                    allowJs: true
                 };
                 program = TJS.getProgramFromFiles([absoluteFilePath], compilerOptions);
             }
 
-            const schema = TJS.generateSchema(program, targetTypeName, { required: true });
+            const schema = TJS.generateSchema(program, targetTypeName, {
+                required: true,
+                noExtraProps: true,
+                ignoreErrors: true,
+                aliasRef: true,
+                ref: true,
+                topRef: true,
+                strictNullChecks: true
+            });
+
             if (!schema) {
                 throw new Error(`Failed to generate schema for type "${targetTypeName}". Ensure the type is exported or accessible.`);
             }
@@ -176,6 +196,21 @@ async function resolveTsSchema(tsOptions: NonNullable<MockRouteConfig['tsOptions
     }
 
     throw new Error('Missing file path or type name for TS generation');
+}
+
+/**
+ * Finds the nearest tsconfig.json by walking up the directory tree from the target file.
+ */
+function findNearestTsConfig(filePath: string): string | undefined {
+    let currentDir = path.dirname(filePath);
+    while (currentDir !== path.parse(currentDir).root) {
+        const tsconfigPath = path.join(currentDir, 'tsconfig.json');
+        if (fs.existsSync(tsconfigPath)) {
+            return tsconfigPath;
+        }
+        currentDir = path.dirname(currentDir);
+    }
+    return undefined;
 }
 
 async function formatResponse(source: any, config: MockRouteConfig, options: GenerationOptions): Promise<any> {
@@ -191,11 +226,11 @@ async function formatResponse(source: any, config: MockRouteConfig, options: Gen
     let generatedData: any;
 
     if (mode === 'object') {
-        generatedData = isSchema ? await jsf.resolve(source) : source;
+        generatedData = isSchema ? await JSONSchemaFaker.resolve(source) : source;
     } else {
         const promises: Promise<any>[] = [];
         for (let i = 0; i < limit; i++) {
-            promises.push(isSchema ? jsf.resolve(source) : Promise.resolve(source));
+            promises.push(isSchema ? JSONSchemaFaker.resolve(source) : Promise.resolve(source));
         }
         generatedData = await Promise.all(promises);
     }

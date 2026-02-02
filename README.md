@@ -6,7 +6,14 @@ A high-performance, flexible Mock Server designed to bridge the gap between Fron
 
 In modern web development, Frontend teams often have to wait for Backend APIs to be ready. This project solves that by:
 
-- **Instant Prototyping**: Convert your TS interfaces directly### 🛠️ Mock Configuration
+- **Instant Prototyping**: Convert your TS interfaces directly into working API endpoints.
+- **Realistic Testing**: Generate massive amounts of localized data (Vietnamese) to test UI layouts and pagination.
+- **Contract-First Development**: Use JSON Schema to define precise data contracts before a single line of backend code is written.
+- **Persistence**: Unlike standard memory-only mock servers, your registered routes are saved and ready after restarts.
+
+---
+
+## 🛠️ Mock Configuration
 
 The server supports multiple ways to define your mock data structure:
 

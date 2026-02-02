@@ -1,0 +1,26 @@
+{
+  "type": "typescript",
+  "responseDataType": "detail",
+  "mainConfig": {
+    "types": {
+      "User": {
+        "return": "object",
+        "itemType": {
+          "id": "number",
+          "fullName": "faker:person.fullName",
+          "contacts": {
+            "return": "array",
+            "itemType": {
+              "type": "home",
+              "phone": "faker:phone.number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "responseTemplate": {
+    "success": true,
+    "result": "{{data}}"
+  }
+}

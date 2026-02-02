@@ -1,0 +1,23 @@
+{
+  "type": "typescript",
+  "responseDataType": "list",
+  "mainConfig": {
+    "types": {
+      "Order": {
+        "return": "array",
+        "itemType": {
+          "orderId": "number",
+          "customerName": "faker:person.fullName",
+          "items": {
+            "return": "array",
+            "itemType": {
+              "productName": "string",
+              "quantity": "number",
+              "price": "number"
+            }
+          }
+        }
+      }
+    }
+  }
+}

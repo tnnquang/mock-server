@@ -1,0 +1,93 @@
+[
+  {
+    "path": "/api/persisted",
+    "method": "GET",
+    "type": "json",
+    "data": {
+      "hello": "persisted world"
+    }
+  },
+  {
+    "path": "/api/test-virtual",
+    "method": "GET",
+    "type": "typescript",
+    "responseDataType": "detail",
+    "mainConfig": {
+      "types": {
+        "Product": {
+          "return": "object",
+          "itemType": {
+            "id": "number",
+            "name": "faker:person.fullName",
+            "price": "number"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "typescript",
+    "responseDataType": "detail",
+    "mainConfig": {
+      "types": {
+        "User": {
+          "return": "object",
+          "itemType": {
+            "id": "number",
+            "fullName": "faker:person.fullName",
+            "contacts": {
+              "return": "array",
+              "itemType": {
+                "type": "home",
+                "phone": "faker:phone.number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responseTemplate": {
+      "success": true,
+      "result": "{{data}}"
+    },
+    "path": "/api/test-configfile",
+    "method": "GET",
+    "configFile": "test-config-v3.json"
+  },
+  {
+    "path": "/api/test-backward",
+    "method": "GET",
+    "type": "ts-type",
+    "responseMode": "list",
+    "tsOptions": {
+      "filePath": "src/test-types-internal.ts",
+      "typeName": "AdminUser"
+    }
+  },
+  {
+    "type": "typescript",
+    "responseDataType": "list",
+    "mainConfig": {
+      "types": {
+        "Order": {
+          "return": "array",
+          "itemType": {
+            "orderId": "number",
+            "customerName": "faker:person.fullName",
+            "items": {
+              "return": "array",
+              "itemType": {
+                "productName": "string",
+                "quantity": "number",
+                "price": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "path": "/api/orders",
+    "method": "GET",
+    "configFile": "test-nested-array.json"
+  }
+]

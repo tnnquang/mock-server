@@ -1,0 +1,21 @@
+[
+  {
+    "path": "/api/users",
+    "method": "GET",
+    "type": "ts-type",
+    "responseMode": "paginated-list",
+    "tsOptions": {
+      "filePath": "d:/Project/demo/mock-server/test-types.ts",
+      "typeName": "User"
+    }
+  },
+  {
+    "path": "/api/config",
+    "method": "GET",
+    "type": "json",
+    "data": {
+      "version": "1.0.0",
+      "environment": "mock"
+    }
+  }
+]

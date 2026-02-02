@@ -1,26 +1,82 @@
-# Mock Server
+# 🚀 Advanced Mock Server
 
-A powerful and flexible mock server designed to generate realistic sample data and virtual APIs using TypeScript types or JSON samples. Perfect for frontend development, testing, and rapid prototyping.
+A high-performance, flexible Mock Server designed to bridge the gap between Frontend and Backend development. This tool allows you to spin up virtual REST APIs in seconds using your existing **TypeScript interfaces**, **JSON Schema**, or **Sample Data**.
 
-## Features
+## 🎯 Purpose & Why Use This?
 
-- 🚀 **Dynamic API Registration**: Create and update mock endpoints at runtime.
-- 📘 **TypeScript Support**: Generate mocks directly from your TS interfaces and types.
-- 📄 **JSON Support**: Use static objects or separate JSON files.
-- 🔢 **Pagination Handling**: Built-in support for `page` and `limit` query parameters.
-- 🎨 **Custom Templates**: Define exactly how your response should look.
-- 💻 **CLI Tooling**: Generate data on the fly or start the server via terminal.
+In modern web development, Frontend teams often have to wait for Backend APIs to be ready. This project solves that by:
+
+- **Instant Prototyping**: Convert your TS interfaces directly### 🛠️ Mock Configuration
+
+The server supports multiple ways to define your mock data structure:
+
+- **`typescript`**: Resolves directly from your project's Types/Interfaces.
+- **`json-schema`**: Generates data from standard JSON Schema.
+- **`json`**: Returns static data or a JSON file.
+
+#### Nomenclature & Parameters
+
+| Old Key (Alias) | **New Key**        | Description                         |
+| :-------------- | :----------------- | :---------------------------------- |
+| `ts-type`       | `typescript`       | Use TypeScript as data source       |
+| `tsOptions`     | `mainConfig`       | Configuration for data source       |
+| `responseMode`  | `responseDataType` | `detail` (object) or `list` (array) |
 
 ---
 
-## Installation
+### 📂 Advanced Configuration Features
+
+#### 1. `configFile` Support
+
+Instead of sending a massive JSON body, you can point to a local JSON file:
+
+```json
+{
+  "path": "/api/users",
+  "method": "GET",
+  "configFile": "configs/user-list.json"
+}
+```
+
+#### 2. Virtual Types (`types` key)
+
+Define data structures directly in your config without needing an actual `.ts` file:
+
+```json
+"mainConfig": {
+  "types": {
+    "User": {
+      "return": "array",
+      "itemType": {
+        "id": "number",
+        "name": "faker:person.fullName",
+        "email": "string"
+      }
+    }
+  }
+}
+```
+
+---
+
+### 🚀 Management API
+
+- 🇻🇳 **Vietnamese Localized Data**: Built-in Faker.js integration (locale: `vi`) for realistic names, addresses, and phone numbers.
+- **TypeScript Engine**: Resolves complex types, utility types (`Omit`, `Partial`), and external interfaces.
+- 📂 **Persistence Layer**: Auto-saves all registered routes to `routes-db.json`.
+- 🔢 **Smart Pagination**: Automatic handling of `page` and `limit` query parameters.
+- 🎨 **Dynamic Templates**: Inject generated data into any JSON structure using `{{data}}`, `{{page}}`, etc.
+- 📱 **JSON Schema support**: Direct mocking from standard JSON Schema patterns.
+- 💻 **Hybrid Interface**: Use the **CLI** for quick one-off data generation or the **REST API** for dynamic route management.
+
+---
+
+## 🛠 Installation & Setup
 
 ```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/tnnquang/mock-server.git
 cd mock-server
-
-# Install dependencies
 npm install
 
 # Build the project
@@ -29,130 +85,109 @@ npm run build
 
 ---
 
-## CLI Usage
+## 💻 CLI Usage Guide
 
-### 1. `serve` (Start Server)
+### 1. `serve` (Start API Server)
 
-Starts the Express server for dynamic API mocking.
+Launch the server to handle HTTP requests.
 
 ```bash
-# Basic start (default port 3000)
+# Basic start (Port 3000)
 node dist/cli.js serve
 
-# Start on custom port with initial configuration
-node dist/cli.js serve -p 4000 -c initial-config.json
+# Start with custom port and pre-defined config
+node dist/cli.js serve --port 4000 --config initial-config.json --tsconfig tsconfig.json
 ```
 
 **Options:**
 
-- `-p, --port <number>`: Port for the server (default: 3000).
-- `-c, --config <path>`: JSON file containing initial route configurations.
+- `-p, --port <number>`: Port (Default: 3000).
+- `-c, --config <path>`: Initial routes JSON file.
+- `--tsconfig <path>`: Path to project's `tsconfig.json` (Required for complex TS types).
 
-### 2. `mock` (Quick Data Generation)
+### 2. `mock` (Quick Data Tool)
 
-Generate data directly to your console or a file without starting the server.
+Generate mock data directly to console or file (No server required).
 
 ```bash
-# Generate from TS interface
-node dist/cli.js mock --file src/types/User.ts --type User --count 5 --list
+# Generate from TS interface (List mode)
+node dist/cli.js mock --file src/types.ts --type User --count 10 --list --tsconfig tsconfig.json
 
-# Generate from JSON and save to file
-node dist/cli.js mock --json sample.json --output result.json
+# Generate Vietnamese Data via JSON Schema
+node dist/cli.js mock --schema "{\"type\":\"object\",\"properties\":{\"fullName\":{\"type\":\"string\",\"faker\":\"person.fullName\"}}}" --count 5 --list
+
+# Save result to file
+node dist/cli.js mock --json my-sample.json --output result.json
 ```
-
-**Options:**
-
-- `-f, --file <path>`: Path to the TypeScript file.
-- `-t, --type <name>`: The specific interface or type name.
-- `-j, --json <data|path>`: Raw JSON string or path to a `.json` file.
-- `-c, --count <number>`: Items to generate (for list mode).
-- `-o, --output <path>`: File to save the result.
-- `--list`: Generate an array of objects.
-- `--template <json>`: Custom response wrapper.
 
 ---
 
-## API Management
+## 🌐 Management API Reference
 
-The server provides a management API to register routes on the fly.
+### Register a New Route
 
-### Register a Route
+`POST /_mock-server/register`
 
-**Endpoint:** `POST /_mock-server/register`
+| Field              | Type     | Description                                                    |
+| :----------------- | :------- | :------------------------------------------------------------- |
+| `path`             | `string` | The API path (e.g., `/api/users`)                              |
+| `method`           | `string` | `GET`, `POST`, `PUT`, `DELETE`                                 |
+| `type`             | `string` | `ts-type`, `json`, or `json-schema`                            |
+| `responseMode`     | `string` | `object` or `list`                                             |
+| `responseTemplate` | `object` | Optional. Wrapper structure using `{{data}}`, `{{page}}`, etc. |
 
-**Example Body (TypeScript Source):**
+**Example (TypeScript Source):**
 
 ```json
 {
-  "path": "/api/users",
+  "path": "/api/products",
   "method": "GET",
   "type": "ts-type",
   "responseMode": "list",
   "tsOptions": {
-    "filePath": "src/types.ts",
-    "typeName": "User"
+    "filePath": "src/models.ts",
+    "typeName": "Product"
   }
 }
 ```
 
-**Example Body (JSON Source + Custom Template):**
+### View Registered Routes
+
+`GET /_mock-server/routes`
+
+---
+
+## 🧪 Advanced Mocking Strategies
+
+### Response Templating
+
+Custom formatting allows you to match your project's specific response structure.
 
 ```json
-{
-  "path": "/api/config",
-  "method": "GET",
-  "type": "json",
-  "data": { "version": "1.0.0" },
-  "responseTemplate": {
-    "success": true,
-    "payload": "{{data}}"
+"responseTemplate": {
+  "success": true,
+  "statusCode": 200,
+  "data": "{{data}}",
+  "meta": {
+    "currentPage": "{{page}}",
+    "pageSize": "{{limit}}"
   }
 }
 ```
 
-### View All Routes
+### TypeScript Line Ranges
 
-**Endpoint:** `GET /_mock-server/routes`
-
----
-
-## Mocking Strategies
-
-### TypeScript Integration
-
-- **Direct File**: Specify `filePath` and `typeName`.
-- **Line Ranges**: If multiple types are in one file, use `lineRange: [startLine, endLine]`.
-- **Inline Definition**: Send a string of TS code via `typeDefinition`.
-
-### Response Customization
-
-Use the `responseTemplate` key to wrap your data. Tokens available:
-
-- `{{data}}`: The generated mock data (object or list).
-- `{{page}}`: Current page number.
-- `{{limit}}`: Number of items requested.
-- `{{total}}`: Mocked total item count.
-- `{{totalPages}}`: Mocked total page count.
-
-**Example Template:**
+If your file has multiple interfaces and you don't want to specify a name:
 
 ```json
-{
-  "status": "success",
-  "results": "{{limit}}",
-  "content": "{{data}}",
-  "meta": { "page": "{{page}}" }
+"tsOptions": {
+  "filePath": "src/types.ts",
+  "lineRange": [10, 25]
 }
 ```
 
 ---
 
-## Development Standards
+## 📜 License
 
-Please refer to [.agent/workflows/development-standard.md](.agent/workflows/development-standard.md) for project-specific rules regarding port management and build processes.
-
----
-
-## License
-
-MIT
+MIT - Developed by [tnnquang](https://github.com/tnnquang)

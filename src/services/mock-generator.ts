@@ -5,43 +5,55 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import crypto from 'crypto';
+import { faker } from '@faker-js/faker/locale/vi';
 
 // Configure faker to be used by json-schema-faker
-// jsf.option({ alwaysFakeOptionals: true });
+jsf.extend('faker', () => faker);
+jsf.option({
+    alwaysFakeOptionals: true,
+    optionalsProbability: 0.5
+});
 
 export interface MockRouteConfig {
     path: string;
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-    type: 'json' | 'ts-type';
+    type: 'json' | 'typescript' | 'json-schema' | 'ts-type'; // Keep ts-type for compatibility
 
     // JSON source options
     data?: any;
     jsonFilePath?: string;
 
-    // TS source options
-    tsOptions?: {
+    // Enhanced Config Support
+    configFile?: string; // Path to a full JSON config for this route
+
+    // TS/Main source options
+    mainConfig?: {
         filePath?: string;
-        typeDefinition?: string; // Direct type/interface string
+        typeDefinition?: string;
         typeName?: string;
         lineRange?: [number, number];
+        types?: Record<string, any>; // Virtual type definitions
     };
+    tsOptions?: MockRouteConfig['mainConfig']; // Compatibility alias
 
     // Response control
-    responseMode?: 'object' | 'list'; // Default 'object'
-    responseTemplate?: any; // Custom wrapper e.g. { success: true, data: "{{data}}" }
+    responseDataType?: 'detail' | 'list';
+    responseMode?: 'object' | 'list'; // Compatibility alias
+    responseTemplate?: any;
     delay?: number;
 }
 
 export interface GenerationOptions {
     page?: number;
     limit?: number;
+    tsconfigPath?: string;
 }
 
 export async function generateMockData(config: MockRouteConfig, options: GenerationOptions = {}): Promise<any> {
     let baseSource: any;
 
     // 1. Resolve Source Data/Schema
-    if (config.type === 'json') {
+    if (config.type === 'json' || config.type === 'json-schema') {
         if (config.jsonFilePath) {
             const absolutePath = path.isAbsolute(config.jsonFilePath)
                 ? config.jsonFilePath
@@ -55,8 +67,16 @@ export async function generateMockData(config: MockRouteConfig, options: Generat
         } else {
             baseSource = config.data;
         }
-    } else if (config.type === 'ts-type' && config.tsOptions) {
-        baseSource = await resolveTsSchema(config.tsOptions);
+    } else if ((config.type === 'typescript' || config.type === 'ts-type')) {
+        const mainConfig = config.mainConfig || config.tsOptions;
+        if (mainConfig) {
+            if (mainConfig.types && !mainConfig.filePath && !mainConfig.typeDefinition) {
+                // Handle Virtual Types (inline definition)
+                baseSource = convertVirtualTypesToSchema(mainConfig.types, mainConfig.typeName);
+            } else {
+                baseSource = await resolveTsSchema(mainConfig, options);
+            }
+        }
     }
 
     if (!baseSource) {
@@ -67,7 +87,7 @@ export async function generateMockData(config: MockRouteConfig, options: Generat
     return await formatResponse(baseSource, config, options);
 }
 
-async function resolveTsSchema(tsOptions: NonNullable<MockRouteConfig['tsOptions']>): Promise<any> {
+async function resolveTsSchema(tsOptions: NonNullable<MockRouteConfig['tsOptions']>, options: GenerationOptions = {}): Promise<any> {
     let targetFilePath = tsOptions.filePath;
     let targetTypeName = tsOptions.typeName;
 
@@ -120,27 +140,51 @@ async function resolveTsSchema(tsOptions: NonNullable<MockRouteConfig['tsOptions
         }
 
         if (!targetTypeName) {
-            throw new Error('Type name could not be determined.');
+            throw new Error(`Type name could not be determined for file: ${absoluteFilePath}`);
         }
 
-        const compilerOptions: TJS.CompilerOptions = {
-            strictNullChecks: true,
-            esModuleInterop: true,
-            skipLibCheck: true
-        };
+        let program: TJS.Program;
 
-        const program = TJS.getProgramFromFiles([absoluteFilePath], compilerOptions);
-        const schema = TJS.generateSchema(program, targetTypeName, { required: true });
-        if (!schema) throw new Error(`Failed to generate schema for ${targetTypeName}`);
-        return schema;
+        try {
+            if (options.tsconfigPath) {
+                const tsconfigPath = path.isAbsolute(options.tsconfigPath)
+                    ? options.tsconfigPath
+                    : path.resolve(process.cwd(), options.tsconfigPath);
+
+                if (!fs.existsSync(tsconfigPath)) {
+                    throw new Error(`tsconfig file not found: ${tsconfigPath}`);
+                }
+
+                program = TJS.programFromConfig(tsconfigPath, [absoluteFilePath]);
+            } else {
+                const compilerOptions: TJS.CompilerOptions = {
+                    strictNullChecks: true,
+                    esModuleInterop: true,
+                    skipLibCheck: true
+                };
+                program = TJS.getProgramFromFiles([absoluteFilePath], compilerOptions);
+            }
+
+            const schema = TJS.generateSchema(program, targetTypeName, { required: true });
+            if (!schema) {
+                throw new Error(`Failed to generate schema for type "${targetTypeName}". Ensure the type is exported or accessible.`);
+            }
+            return schema;
+        } catch (e: any) {
+            throw new Error(`TypeScript Resolution Error: ${e.message}`);
+        }
     }
 
     throw new Error('Missing file path or type name for TS generation');
 }
 
 async function formatResponse(source: any, config: MockRouteConfig, options: GenerationOptions): Promise<any> {
-    const isSchema = config.type === 'ts-type';
-    const mode = config.responseMode || 'object';
+    const isSchema = config.type === 'typescript' || config.type === 'ts-type' || config.type === 'json-schema';
+
+    // Support new responseDataType naming
+    let mode: string = config.responseDataType === 'detail' ? 'object' : (config.responseDataType || config.responseMode || 'object');
+    if (mode === 'object') mode = 'object'; // Normalize
+
     const page = Number(options.page) || 1;
     const limit = Number(options.limit) || 10;
 
@@ -201,4 +245,58 @@ async function formatResponse(source: any, config: MockRouteConfig, options: Gen
     }
 
     return generatedData;
+}
+
+/**
+ * Converts nested virtual type definitions into JSON Schema
+ */
+function convertVirtualTypesToSchema(types: Record<string, any>, targetTypeName?: string): any {
+    const mainType = targetTypeName || Object.keys(types)[0];
+    const definition = types[mainType];
+
+    if (!definition) throw new Error(`Type "${mainType}" not found in virtual types`);
+
+    const parseType = (item: any): any => {
+        if (typeof item === 'string') {
+            if (item.startsWith('faker:')) {
+                return { type: 'string', faker: item.replace('faker:', '') };
+            }
+            if (['string', 'number', 'integer', 'boolean', 'object', 'array'].includes(item)) {
+                return { type: item };
+            }
+            return { type: 'string' }; // Default
+        }
+
+        if (typeof item === 'object' && item !== null) {
+            if (item.return === 'array') {
+                return {
+                    type: 'array',
+                    items: parseType(item.itemType)
+                };
+            }
+
+            // Nested object
+            const properties: Record<string, any> = {};
+            const required: string[] = [];
+            for (const key in item) {
+                properties[key] = parseType(item[key]);
+                required.push(key);
+            }
+            return {
+                type: 'object',
+                properties,
+                required
+            };
+        }
+        return { type: 'string' };
+    }
+
+    if (definition.return === 'array') {
+        return {
+            type: 'array',
+            items: parseType(definition.itemType)
+        };
+    }
+
+    return parseType(definition.itemType || definition);
 }

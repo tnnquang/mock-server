@@ -16,10 +16,13 @@ export function validateMockConfig(config: MockRouteConfig): ValidationResult {
     if (!config.method) errors.push('Missing required field: method');
     if (!config.type) errors.push('Missing required field: type');
 
+    // Handle backward compatibility for type
+    const isTsType = config.type === 'typescript' || config.type === 'ts-type';
+
     // Validate type-specific options
-    if (config.type === 'json') {
+    if (config.type === 'json' || config.type === 'json-schema') {
         if (!config.data && !config.jsonFilePath) {
-            errors.push('JSON type requires either "data" or "jsonFilePath"');
+            errors.push(`${config.type} type requires either "data" or "jsonFilePath"`);
         }
         if (config.jsonFilePath) {
             const absolutePath = path.isAbsolute(config.jsonFilePath)
@@ -31,14 +34,15 @@ export function validateMockConfig(config: MockRouteConfig): ValidationResult {
         }
     }
 
-    if (config.type === 'ts-type') {
-        if (!config.tsOptions) {
-            errors.push('TS type requires "tsOptions"');
+    if (isTsType) {
+        const mainConfig = config.mainConfig || config.tsOptions;
+        if (!mainConfig) {
+            errors.push('TypeScript type requires "mainConfig" or "tsOptions"');
         } else {
-            const { filePath, typeDefinition, typeName, lineRange } = config.tsOptions;
+            const { filePath, typeDefinition, typeName, lineRange, types } = mainConfig;
 
-            if (!filePath && !typeDefinition) {
-                errors.push('TS type requires either "filePath" or "typeDefinition"');
+            if (!filePath && !typeDefinition && !types) {
+                errors.push('TypeScript type requires either "filePath", "typeDefinition", or "types" (virtual types)');
             }
 
             if (filePath) {
@@ -74,7 +78,10 @@ export function validateMockConfig(config: MockRouteConfig): ValidationResult {
         }
     }
 
-    // Validate response mode
+    // Validate response mode/type
+    if (config.responseDataType && !['detail', 'list'].includes(config.responseDataType)) {
+        errors.push('responseDataType must be "detail" or "list"');
+    }
     if (config.responseMode && !['object', 'list'].includes(config.responseMode)) {
         errors.push('responseMode must be "object" or "list"');
     }

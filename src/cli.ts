@@ -18,6 +18,7 @@ program
     .description('Start the mock server')
     .option('-p, --port <number>', 'Port to run server on', '3000')
     .option('-c, --config <path>', 'Path to a JSON config file containing initial routes')
+    .option('--tsconfig <path>', 'Path to tsconfig.json for TypeScript type resolution')
     .action((options) => {
         const port = parseInt(options.port, 10);
         let initialRoutes = [];
@@ -37,7 +38,7 @@ program
             }
         }
 
-        startServer(port, initialRoutes);
+        startServer(port, initialRoutes, options.tsconfig);
     });
 
 program
@@ -46,27 +47,34 @@ program
     .option('-f, --file <path>', 'TypeScript file path')
     .option('-t, --type <name>', 'Type/Interface name')
     .option('-j, --json <data>', 'JSON data or file path')
+    .option('-s, --schema <data>', 'JSON Schema data or file path')
     .option('-c, --count <number>', 'Number of items to generate (for list mode)', '1')
     .option('-o, --output <path>', 'Output file path (default: stdout)')
     .option('--template <json>', 'Response template as JSON string')
     .option('--list', 'Generate as list instead of single object')
+    .option('--tsconfig <path>', 'Path to tsconfig.json for TypeScript type resolution')
     .action(async (options) => {
         try {
+            let type: MockRouteConfig['type'] = 'json';
+            if (options.file) type = 'ts-type';
+            if (options.schema) type = 'json-schema';
+
             const config: MockRouteConfig = {
                 path: '/mock',
                 method: 'GET',
-                type: options.json ? 'json' : 'ts-type',
+                type,
                 responseMode: options.list ? 'list' : 'object'
             };
 
-            if (options.json) {
-                if (fs.existsSync(options.json)) {
-                    config.jsonFilePath = options.json;
+            const jsonData = options.json || options.schema;
+            if (jsonData) {
+                if (fs.existsSync(jsonData)) {
+                    config.jsonFilePath = jsonData;
                 } else {
                     try {
-                        config.data = JSON.parse(options.json);
+                        config.data = JSON.parse(jsonData);
                     } catch (e) {
-                        console.error('Invalid JSON data');
+                        console.error('Invalid JSON/Schema data');
                         process.exit(1);
                     }
                 }
@@ -76,7 +84,7 @@ program
                     typeName: options.type
                 };
             } else {
-                console.error('Either --file or --json must be provided');
+                console.error('Either --file, --json, or --schema must be provided');
                 process.exit(1);
             }
 
@@ -97,7 +105,10 @@ program
             }
 
             const count = parseInt(options.count, 10);
-            const result = await generateMockData(config, { limit: count });
+            const result = await generateMockData(config, {
+                limit: count,
+                tsconfigPath: options.tsconfig
+            });
 
             const output = JSON.stringify(result, null, 2);
             if (options.output) {

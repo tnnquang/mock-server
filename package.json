@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/tnnquang/mock-server#readme",
   "dependencies": {
+    "@faker-js/faker": "^10.2.0",
     "body-parser": "^2.2.2",
     "commander": "^14.0.2",
     "cors": "^2.8.6",
